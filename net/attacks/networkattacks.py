@@ -1,4 +1,3 @@
-from email.errors import MessageParseError
 import pyshark
 import time
 import nest_asyncio
@@ -21,10 +20,9 @@ def arpSpoofing(filePath):
             macFound = True
     
     if arpSpoofedPkts > 1:
-        print("\nTraces of an ARP Spoofing attack have been found.\n\tPoisonus packets found: {}".format(arpSpoofedPkts))
-        print("\tAttacker: {}\n".format(attackerMacAddr))
+        print("\nTraces of an 'ARP Spoofing' attack have been found.\n\tPoisonus packets found: {}".format(arpSpoofedPkts)+"\n")
     else:
-        print("No traces of Arp Spoofing have been found.\n")
+        print("No traces of 'Arp Spoofing' have been found.\n")
 
 
 ##################### DOS ##########################
@@ -36,6 +34,7 @@ def arpSpoofing(filePath):
 def packet_loss(filePath, total_tcp_packets):
 
     if total_tcp_packets == 0:
+        print("No unexpected 'Packet Loss' have been found.\n")
         return -1
 
     pkt_loss_filter = "tcp.analysis.lost_segment or tcp.analysis.retransmission"
@@ -47,10 +46,10 @@ def packet_loss(filePath, total_tcp_packets):
     
     lossRatio = pktLossCounter / total_tcp_packets
     if(lossRatio < 1/4):
-        print("No unexpected packet loss have been found.\n")
+        print("No unexpected 'Packet Loss' have been found.\n")
         return 0
     else:
-        message = "Unexpected packets loss have been found."
+        message = "Unexpected 'Packets Loss' have been found."
         print(f"{message}\n\tpackets lost / re-transmitted = {pktLossCounter}\n\ttotal tcp packets = {total_tcp_packets}\n")
         if(lossRatio > 1/2):
             return 2
@@ -63,11 +62,12 @@ def packet_loss(filePath, total_tcp_packets):
    IPv4 header'''
 def pingOfDeathIPv4(filePath):
 
-    pingOfDeathIPv4Filter = 'icmp and ip.len > 84'
+    pingOfDeathIPv4Filter = 'icmp and not icmp.type == 3 and ip.len > 84'
     ping_of_death_IPv4_cap = pyshark.FileCapture(filePath, display_filter = pingOfDeathIPv4Filter)
 
     botnet = {}
-    victims = {}
+    victim = None
+    multipleVictims = False
     podpkts = 0
     first_ping = True
     first_ping_time = 0
@@ -89,10 +89,12 @@ def pingOfDeathIPv4(filePath):
                 botnet[pkt.ip.src]['first ping'] = float(pkt.frame_info.time_epoch)
                 botnet[pkt.ip.src]['last ping'] = float(pkt.frame_info.time_epoch)
                 botnet[pkt.ip.src]['pkt length'] = int(pkt.ip.len)
-            try: 
-                victims[pkt.ip.dst] = victims[pkt.ip.dst] +1
-            except KeyError:
-                victims[pkt.ip.dst] = 1
+
+            if(victim == None):
+                victim = pkt.ip.dst
+            elif(victim != pkt.ip.dst):
+                multipleVictims = True
+
         last_ping_time = pkt.frame_info.time_epoch
 
     first_ping_time = float(first_ping_time)
@@ -100,11 +102,15 @@ def pingOfDeathIPv4(filePath):
     startTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(first_ping_time))
     endTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_ping_time))
 
-    if(podpkts > 0 and len(botnet) > 1) :
-        message = "Traces of DDoS 'ping of death' attack have been found"
+    if(podpkts > 0 and len(botnet) >= 1 and multipleVictims):
+        message = "Traces of a possible DoS/DDoS 'Ping of Death' attack have been found with unusual multiple attacked hosts.\nFurther investigations are highly advised.\n "
+        print(f"{message}\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
+        return
+    elif(podpkts > 0 and len(botnet) > 1) :
+        message = "Traces of DDoS 'Ping of Death' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
     elif(podpkts > 0 and len(botnet) == 1) :
-        message = "Traces of DoS 'ping of death' attack have been found"
+        message = "Traces of DoS 'Ping of Death' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n")
     else:
         print("No Traces of DoS/DDoS 'Ping of Death' attack have been found.\n")
@@ -112,15 +118,14 @@ def pingOfDeathIPv4(filePath):
 
     for zombie, zombieInfo in botnet.items():
         print(f"\tHost : {zombie} has sent {zombieInfo['pkts']} packets of lenght: {zombieInfo['pkt length']}")
-    for host, request in victims.items():
-        print(f"\t{host} has been reached {request} times")
+    print(f"\tVictim Host : {victim} has been reached {podpkts} times")
     print()
 
 
 '''ICMP FLOOD'''
 def icmpFlood(filePath):
 
-    echoReqFilter = "icmp.type == 8"
+    echoReqFilter = "icmp.type == 8 and not icmp.type == 3"
     icmp_flood_cap  = pyshark.FileCapture(filePath, display_filter = echoReqFilter)
 
     pingPerSec = 2
@@ -132,7 +137,8 @@ def icmpFlood(filePath):
     lastEchoTime = None
     echoPktCount = 0
     botnet = {}
-    victims = {}
+    victim = None
+    multipleVictims = False
 
     for pkt in icmp_flood_cap:
         if(firstEcho):
@@ -149,15 +155,16 @@ def icmpFlood(filePath):
                 botnet[pkt.ip.src]['pkts'] = 1
                 botnet[pkt.ip.src]['first ping'] = float(pkt.frame_info.time_epoch)
                 botnet[pkt.ip.src]['last ping'] = float(pkt.frame_info.time_epoch)
-            try: 
-                victims[pkt.ip.dst] = victims[pkt.ip.dst] + 1
-            except KeyError:
-                victims[pkt.ip.dst] = 1
+
+            if(victim == None):
+                victim = pkt.ip.dst
+            elif(victim != pkt.ip.dst):
+                multipleVictims = True
 
         lastEchoTime = pkt.frame_info.time_epoch
     
     if(echoPktCount == 0):
-        print("No Traces of DoS/DDoS 'ICMP flood' attack have been found\n")
+        print("No Traces of DoS/DDoS 'ICMP Flood' attack have been found\n")
         return
 
     firstEchoTime = float(firstEchoTime)
@@ -174,22 +181,27 @@ def icmpFlood(filePath):
     except ZeroDivisionError:
         del botnet[zombie] #if the hosts in the botnet are not flagged as possible attacker nor attacker remove them from the botnet
 
-    if len(botnet) == 0:
-        print("No Traces of DoS/DDoS 'ICMP flood' attack have been found\n")
+    if len(botnet) == 0: # all the hosts were legit
+        print("No Traces of DoS/DDoS 'ICMP Flood' attack have been found\n")
         return
 
     startTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(firstEchoTime))
     endTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(lastEchoTime))
 
-    if(hostAtkCount > 1) :
-        message = "Traces of DDoS 'ICMP flood' attack have been found"
+    if(hostAtkCount >= 1 or possibleHostAtkCount >= 1) and multipleVictims:
+        message = "Traces of a possible 'ICMP Ping' Scan have been found, further investigations are needed.\n"
+        print(message)
+        return
+    elif(hostAtkCount > 1) :
+        message = "Traces of DDoS 'ICMP Flood' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {hostAtkCount}\n")
     elif(hostAtkCount == 1) :
-        message = "Traces of DoS 'ICMP flood' attack have been found"
+        message = "Traces of DoS 'ICMP Flood' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n")
     else:
-        print("No Traces of DoS/DDoS 'ICMP flood' attack have been found.\n")
+        print("No Traces of DoS/DDoS 'ICMP Flood' attack have been found.\n")
         return    
+    
     for zombie, zombieInfo in botnet.items():
         if (int)(zombieInfo['pkts'] / (float)(zombieInfo['last ping'] - zombieInfo['first ping']) > secondThreshold):
             print(f"\tHost : {zombie} has sent {zombieInfo['pkts']} packets in {zombieInfo['last ping'] - zombieInfo['first ping']} seconds")
@@ -199,8 +211,7 @@ def icmpFlood(filePath):
                 if ((int)(zombieInfo['pkts'] / (float)(zombieInfo['last ping'] - zombieInfo['first ping']) < secondThreshold)
                     and (int)(zombieInfo['pkts']) / float (zombieInfo['last ping'] - zombieInfo['first ping']) > firstThreshold):
                     print(f"\tHost : {zombie} has sent {zombieInfo['pkts']} packets in {zombieInfo['last ping'] - zombieInfo['first ping']} seconds")
-    for host, request in victims.items():
-            print(f"\t{host} has been reached {request} times")
+    print(f"\tVictim Host:{victim} has been reached {echoPktCount} times")
     print()
 
 
@@ -219,7 +230,8 @@ def syn_flood(filePath):
     firstSynTime = None
     lastSynTime = None
     botnet = {}
-    victims = {}
+    victim = None
+    multipleVictims = False
 
     for pkt in syn_flood_cap:
         if(firstSyn):
@@ -237,15 +249,15 @@ def syn_flood(filePath):
                 botnet[pkt.ip.src]['first syn'] = float(pkt.frame_info.time_epoch)
                 botnet[pkt.ip.src]['last syn'] = float(pkt.frame_info.time_epoch)
 
-            try: 
-                victims[pkt.ip.dst] = victims[pkt.ip.dst] +1
-            except KeyError:
-                victims[pkt.ip.dst] = 1
+            if(victim == None):
+                victim = pkt.ip.dst
+            elif(victim != pkt.ip.dst):
+                multipleVictims = True
     
         lastSynTime = pkt.frame_info.time_epoch
 
     if(synNotAck_pkts <= 1):
-        print("No Traces of DoS/DDoS 'Syn flood' attack have been found\n")
+        print("No Traces of DoS/DDoS 'Syn Flood' attack have been found\n")
         return
 
     for pkt in syn_ack_cap:
@@ -261,26 +273,30 @@ def syn_flood(filePath):
     startTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(firstSynTime))
     endTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(lastSynTime))
 
-    if(synAckRatio > 1/3 and synAckRatio < 1 and len(botnet) > 1) :
-        message = "Traces of a possible DDoS 'Syn flood' attack have been found"
+    if(multipleVictims and synNotAck_pkts > 10):
+        message = "Traces of a possible 'TCP Syn' Scan have been found, further investigations are needed.\n"
+        print(message)
+        return
+        print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
+    elif(synAckRatio > 1/3 and synAckRatio < 1 and len(botnet) > 1) :
+        message = "Traces of a possible DDoS 'Syn Flood' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
     elif(synAckRatio > 1/3 and synAckRatio < 1 and len(botnet) == 1) :
-        message = "Traces of a possible DoS 'Syn flood' attack have been found"
+        message = "Traces of a possible DoS 'Syn Flood' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}")
     elif(synAckRatio < 1/3 and len(botnet) > 1) :
-        message = "Traces of a DDoS 'Syn flood' attack have been found"
+        message = "Traces of a DDoS 'Syn Flood' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
     elif(synAckRatio < 1/3 and len(botnet) == 1) :
-        message = "Traces of a DoS 'Syn flood' attack have been found"
+        message = "Traces of a DoS 'Syn Flood' attack have been found"
         print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}")
     else:
-        print("No Traces of DoS/DDoS 'Syn flood' attack have been found\n")
+        print("No Traces of DoS/DDoS 'Syn Flood' attack have been found\n")
         return
 
     for zombie, zombieInfo in botnet.items():
             print(f"\tHost : {zombie} has sent {zombieInfo['pkts']} packets in {zombieInfo['last syn'] - zombieInfo['first syn']} seconds")
-    for host, request in victims.items():
-            print(f"\t{host} has been reached {request} times")
+    print(f"\tVictim Host: \t{victim} has been reached {synNotAck_pkts} times")
     print()
 
 '''DNS Request flood, attacker general requests use the UDP protocol with a DESTination port of 53 
@@ -291,7 +307,8 @@ def dns_req_flood(filePath, totalPackets):
     dns_req_cap = pyshark.FileCapture(filePath, display_filter = dns_req_flood_filter)
 
     botnet = {}
-    victims = {}
+    victim = None
+    multipleVictims = False
     dnsReqPkts = 0
     first_req = True
     first_req_time = 0
@@ -313,45 +330,50 @@ def dns_req_flood(filePath, totalPackets):
                 botnet[pkt.ip.src]['pkts'] = 1
                 botnet[pkt.ip.src]['first req'] = float(pkt.frame_info.time_epoch)
                 botnet[pkt.ip.src]['last req'] = float(pkt.frame_info.time_epoch)
-            try: 
-                victims[pkt.ip.dst] = victims[pkt.ip.dst] +1
-            except KeyError:
-                victims[pkt.ip.dst] = 1
-        
+            
+            if(victim == None):
+                victim = pkt.ip.dst
+            elif(victim != pkt.ip.dst):
+                multipleVictims = True
+
         last_req_time = pkt.frame_info.time_epoch
 
     first_req_time = float(first_req_time)
     last_req_time = float(last_req_time)
     startTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(first_req_time))
     endTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_req_time))
-            
+      
     if(last_req_time - first_req_time == 0):
-        print("No traces of 'DNS Request flood' attack have been found\n")
+        print("No traces of 'DNS Request Flood' attack have been found\n")
+        return
+    elif(multipleVictims and dnsReqPkts / (last_req_time - first_req_time) > 1 and dnsReqPkts/totalPackets > 1/15):
+        message = "Traces of a possible DoS/DDoS 'DNS Request Flood' attack have been found with unusual multiple attacked hosts.\n Further investigations are highly advised.\n"
+        print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
+        return
     elif(dnsReqPkts/ (last_req_time - first_req_time) > 1 and dnsReqPkts /totalPackets > 1/9):
         if len(botnet) > 1:
-            message = "Traces of a DDoS 'DNS Request flood' attack have been found"
+            message = "Traces of a DDoS 'DNS Request Flood' attack have been found"
             print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
         else:
-            message = "Traces of a DOS 'DNS Request flood' attack have been found"
+            message = "Traces of a DOS 'DNS Request Flood' attack have been found"
             print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n")
     elif(dnsReqPkts / (last_req_time - first_req_time) > 1 and dnsReqPkts/totalPackets > 1/15):
         if len(botnet) > 1:
-            message = "Traces of a possible DDoS 'DNS Request flood' attack have been found,further investigation is needed"
+            message = "Traces of a possible DDoS 'DNS Request Flood' attack have been found,further investigation is needed"
             print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}\n\tBOTNET cardinality = {len(botnet)}\n")
         else:
-            message = "Traces of a possible 'dns request flood' DOS attack have been found, further investigation is needed"
+            message = "Traces of a possible 'DNS Request Flood' DOS attack have been found, further investigation is needed"
             print(f"{message}:\n\tattack STARTED: {startTime}\n\tattack ENDED: {endTime}")
     else:
-        print("No traces of dns request flood exploitation have been found")
+        print("No traces of 'DNS Request Flood' attack have been found\n")
         return
 
     for zombie, zombieInfo in botnet.items():
-        print(f"\t{zombie} has sent {zombieInfo['pkts']} packets in {zombieInfo['last req'] - zombieInfo['first req']} seconds")
-    for host, request in victims.items():
-        print(f"\t{host} has been reached {request} times")
+        print(f"\tHost: \t{zombie} has sent {zombieInfo['pkts']} packets in {zombieInfo['last req'] - zombieInfo['first req']} seconds")
+    print(f"\tVictim Host: \t{victim} has been reached {dnsReqPkts} times")
     print()    
     
-##################### VLAN ##########################
+##################### VLAN/CISCO ##########################
 
 '''Check if there are any DTP (dynamic Trunking Protocol) or packets tagged with 
    multiple Vlan tags'''
@@ -364,8 +386,7 @@ def vlan_hopping(filePath):
     for pkt in vlan_hopping_cap:
         pktHopCount += 1
     if(pktHopCount > 1):
-        print('''Traces of a possible vlan hopping attack have been found:\n
-                \tPoisonus packets = {}'''.format(pktHopCount))
+        print("Traces of a possible 'Vlan Hopping' attack have been found:\n\tPoisonus packets = {}".format(pktHopCount))
     else:
-        print("No traces of vlan hopping exploitation have been found.")
+        print("No traces of 'Vlan Hopping' exploitation have been found.")
     print()
