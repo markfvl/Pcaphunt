@@ -1,5 +1,5 @@
 # Pcaphunt
-Python program to analyze and discover possible threats in a pcap file
+Python program to analyze and discover possible threats in a pcap file.
 # Supported threats
 - **Network Attacks**:
   - arp spoofing
@@ -13,13 +13,13 @@ Python program to analyze and discover possible threats in a pcap file
   - arp scan
   - ip protocol scan
   - icmp ping scan
-  - tcp syn scan
-  - tcp ack scan
+  - tcp ping syn scan
+  - tcp ping ack scan
   - udp ping scan
 # How to run
 In order to run this program you must have python 3.x and pip3 installed.
 
-The prerequisites to run this program are wireshark, tshark and the python modules nest_asyncio and pyshark:
+The prerequisites to run this program are wireshark, tshark and the python modules nest_asyncio, pyshark and scapy:
 
 - `sudo apt update`
 - `sudo apt upgrade -y`
@@ -36,6 +36,6 @@ To run the program:
 You can also run:
 - `python3 pcaphunt.py -s <filepcap>`
 
-to run the supported scapy functions instead of the pyshark's one
+to run the supported scapy function instead of the pyshark's one.
   
 **Note**: pcaps with annotations or comments could break the application.
