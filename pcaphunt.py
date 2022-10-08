@@ -11,7 +11,7 @@ from colorama import Fore, Back, Style
 
 from net.attacks.networkattacks import *
 from net.recon.hostdiscovery import *
-from net.offense import credentialSpoof
+from net.offense import credentialSniff
 
 from utils.parser import *
 from utils.pcapStat import *
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         print(Fore.RED + Style.BRIGHT + "OFFENSIVE MODE ENGAGED")
         print(Style.BRIGHT + f"\t(trying to find {args.offensive.upper()} credentials in the pcap...)\n")
         print(Style.RESET_ALL)
-        credentialSpoof.credentialSpoof(args.offensive, filePath)
+        credentialSniff.credentialSniff(args.offensive, filePath)
 
     #STATS
     if(args.verbose > 0 and args.offensivr == "none"):
