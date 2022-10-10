@@ -1,7 +1,6 @@
 import sys
 import pyshark
 
-
 def credentialSniff(protocol, filePath):
 
     if(protocol == "http"):
@@ -25,6 +24,8 @@ def httpGetCred(filePath):
 
     httpCredentials = {}
     discarded = []
+    datas = []
+    list_of_IPs= []
 
     for pkt in http_discard_cap:
         discarded.append(pkt.http.request_in) 
@@ -41,21 +42,40 @@ def httpGetCred(filePath):
             credentials = credentialStrings[index:endIndex]
             user = credentials[1:credentials.find(":")]
             pwd = credentials[credentials.find(":")+1:]
-        try: 
-            httpCredentials["Credentials"][user] = pwd
-        except KeyError:
-            httpCredentials["Server IP"] = pkt.ip.dst
-            httpCredentials["Server Port"] = pkt.tcp.dstport
-            httpCredentials["Credentials"] = {}
-            httpCredentials["Credentials"][user] = pwd
 
-    if(httpCredentials):    
-        print(f"HTTP server IP : {httpCredentials['Server IP']}\nHTTP server Port : {httpCredentials['Server Port']}\n")
-        print("HTTP CREDENTIALS:")
-        for k, v in httpCredentials.items():
-            if k == "Credentials":
-                for user, pwd in httpCredentials[k].items():
-                    print(f"\t username = {user}, password = {pwd}")
+            if len(datas) == 0:
+                #first dict entry
+                httpCredentials["Server IP"] = pkt.ip.dst
+                httpCredentials["Server Port"] = pkt.tcp.dstport
+                datas.append(httpCredentials)
+            elif len(datas) > 1:
+                list_of_IPs = [dict["Server IP"] for dict in datas]
+                ip = pkt.ip.dst
+                if ip in list_of_IPs:
+                        #server is already in list
+                        pass
+                else:
+                    # add server in list
+                    httpCredentials["Server IP"] = pkt.ip.dst
+                    httpCredentials["Server Port"] = pkt.tcp.dstport
+                    datas.append(httpCredentials)  
+        for dict in datas: 
+            if dict["Server IP"] == pkt.ip.dst:
+                try:
+                    dict["Credentials"][user] = pwd
+                    break
+                except KeyError:
+                    dict["Credentials"] = {}
+                    dict["Credentials"][user] = pwd
+                    break
+    if(datas):
+        for dict in datas:
+            print(f"HTTP server IP : {dict['Server IP']}\nHTTP server Port : {dict['Server Port']}\n") 
+            print("HTTP CREDENTIALS:")
+            for k, v in dict.items():
+                if k == "Credentials":
+                    for user, pwd in dict[k].items():
+                        print(f"\t username = {user}, password = {pwd}")
     else:
         print("No HTTP credentials have been found")
     print()
@@ -69,7 +89,7 @@ def ftpCred(filePath):
     ftpCredentials = {}
     usernames = {}
     server_not_found = True
-    index = 0
+    list_of_IPs = []
 
     for pkt in ftp_cap:
         try:
@@ -84,16 +104,16 @@ def ftpCred(filePath):
                     server_not_found = False
                     datas.append(ftpCredentials)
                 elif pkt.ip.dst != ftpCredentials["serverIP"]:
-                    for dict in datas:
-                        if pkt.ip.dst == dict["serverIP"]:
-                            #server is already in list
-                            continue
-                        else:
-                            # add server in list
-                            ftpCredentials["serverIP"] = pkt.ip.dst
-                            ftpCredentials["serverPort"] = pkt.tct.dstport
-                            datas.append(ftpCredentials)    
-                            index +=1
+                    list_of_IPs = [dict["serverIP"] for dict in datas]
+                    ip = pkt.ip.dst
+                    if ip in list_of_IPs:
+                        #server is already in list
+                        pass
+                    else:
+                        # add server in list
+                        ftpCredentials["serverIP"] = pkt.ip.dst
+                        ftpCredentials["serverPort"] = pkt.tct.dstport
+                        datas.append(ftpCredentials)  
                 #USERNAME 
                 username_hex_column = payload[payload.find("20")+3 :-6]
                 username_hex = "".join(n for n in username_hex_column if n.isalnum())
@@ -111,15 +131,15 @@ def ftpCred(filePath):
                             for dict in datas:
                                 if pkt.ip.dst == dict["serverIP"]:
                                     dict["Credentials"][user] = pwd
-                            
+                                    break    
                         except KeyError:
                             for dict in datas:
                                 if pkt.ip.dst == dict["serverIP"]:
                                     dict["Credentials"] = {}
                                     dict["Credentials"][user] = pwd
+                                    break
         except AttributeError:
             pass
-
     if(datas):  
         for dict in datas:
             print(f"FTP server IP : {dict['serverIP']}\nFTP server Port : {dict['serverPort']}\n") 
