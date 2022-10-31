@@ -16,6 +16,10 @@ Python program to analyze and discover possible threats in a pcap file.
   - tcp ping syn scan
   - tcp ping ack scan
   - udp ping scan
+- **Credentials Sniffing**: 
+  - http 
+  - ftp
+  
 # How to run
 In order to run this program you must have python 3.x and pip3 installed.
 
@@ -37,5 +41,8 @@ You can also run:
 - `python3 pcaphunt.py -s <filepcap>`
 
 to run the supported scapy function instead of the pyshark's one.
+
+For other options run:
+- python3 pcaphunt.py -h
   
 **Note**: pcaps with annotations or comments could break the application.
