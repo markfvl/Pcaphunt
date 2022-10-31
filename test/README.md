@@ -8,3 +8,8 @@ The captures:
 
 are from the repository [packet-captures](https://github.com/StopDDoS/packet-captures.git) made by [StopDDoS](https://github.com/StopDDoS).
 Hence I **do not** own any rights on those files.
+
+# SHARKFEST 2022
+**Other pcap files** (rather large files):
+- [IceID infection with Cobalt Strike](https://drive.google.com/file/d/1pgMGD__6ojwuVd04fFVwbQR7Q5hu0LDj/view?usp=sharing) (~11MB)
+- [Webserver scan](https://drive.google.com/file/d/17IA1bgLkiwXsBYZE9IwCG3iu7SlpzcPc/view?usp=sharing) (~29MB)
