@@ -43,6 +43,6 @@ You can also run:
 to run the supported scapy function instead of the pyshark's one.
 
 For other options run:
-- python3 pcaphunt.py -h
+- `python3 pcaphunt.py -h`
   
 **Note**: pcaps with annotations or comments could break the application.
