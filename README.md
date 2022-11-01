@@ -46,3 +46,6 @@ For other options run:
 - `python3 pcaphunt.py -h`
   
 **Note**: pcaps with annotations or comments could break the application.
+
+# Sharkfest 2022
+The slides (.ppxt) can be found [here](https://docs.google.com/presentation/d/1Ul77RaUjQDhuGYrRNC-imOvox66o0T_S/edit?usp=sharing&ouid=110451966882557303913&rtpof=true&sd=true), it is also available the [pdf version](https://drive.google.com/file/d/1tuIywnH_zQWq8yJTjYypME5HBoR5bJJl/view?usp=sharing).
