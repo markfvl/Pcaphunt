@@ -118,7 +118,7 @@ if __name__ == "__main__":
         credentialSniff.credentialSniff(args.offensive, filePath)
 
     #STATS
-    if(args.verbose > 0 and args.offensivr == "none"):
+    if(args.verbose > 0 and args.offensive == "none"):
         print("\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
         print("\nGeneral stats:")
         for key, value in stats.items():
