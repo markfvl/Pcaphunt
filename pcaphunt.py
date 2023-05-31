@@ -9,8 +9,9 @@ from colorama import init
 init()
 from colorama import Fore, Back, Style
 
-from net.attacks.networkattacks import *
-from net.recon.hostdiscovery import *
+import net.attacks.networkattacks as na
+import net.recon.hostdiscovery as hd
+import net.attacks.ddosdetection as dd
 from net.offense import credentialSniff
 
 from utils.parser import *
@@ -20,41 +21,41 @@ import utils.menu
 ####################### CALL ATTACKS ###########################
 
 
-def callAttacks(filePath, stats, args, attackTOAnalyse):
+def callAttacks(filePath, args, attackTOAnalyse):
 
-    attacks = [arpSpoofing, packet_loss, pingOfDeathIPv4, icmpFlood, 
-                syn_flood, dns_req_flood, vlan_hopping]
+    attacks = [na.arpSpoofing, na.packet_loss, dd.pingOfDeathIPv4, dd.icmp_flood, 
+                dd.tcp_syn_flood, dd.dns_request_flood, na.vlan_hopping]
     if args.scapy > 0:
         from net.recon.hostdiscoveryScapy import arp_scanningScapy
-        scans = [arp_scanningScapy, IP_protocol_scan, icmp_ping_sweeps_scan, 
-                tcp_syn_ping_sweep, tcp_ack_ping_sweep, udp_ping_scan]
+        scans = [arp_scanningScapy, hd.IP_protocol_scan, hd.icmp_ping_sweeps_scan, 
+                hd.tcp_syn_ping_sweep, hd.tcp_ack_ping_sweep, hd.udp_ping_scan]
     else:
-        scans = [arp_scanning, IP_protocol_scan, icmp_ping_sweeps_scan, 
-                tcp_syn_ping_sweep, tcp_ack_ping_sweep, udp_ping_scan]
+        scans = [hd.arp_scanning, hd.IP_protocol_scan, hd.icmp_ping_sweeps_scan, 
+                hd.tcp_syn_ping_sweep, hd.tcp_ack_ping_sweep, hd.udp_ping_scan]
 
     if(args.all > 0 or attackTOanalyse[0] == 3):
         print("RECON: \n")
         allScans(scans, filePath)
         print("\nNETWORK ATTACKS: \n")
-        allAttacks(attacks, filePath, stats)
+        allAttacks(attacks, filePath)
     elif(attackTOanalyse[0] == 1):
         if(attackTOanalyse[1] == 1): #Spoof
             if(attackTOanalyse[2] == 1):
                 attacks[0](filePath)
         elif(attackTOanalyse[1] == 2): #DDoS
             if(attackTOanalyse[2] == 1):
-                attacks[1](filePath, stats['tcp_packets'])
+                attacks[1](filePath)
             elif(attackTOanalyse[2] == 5):
-                attacks[5](filePath, stats['total_packets'])
+                attacks[5](filePath)
             elif(attackTOanalyse[2] == 6):
-                allAttacks(attacks[1:6], filePath, stats)
+                allAttacks(attacks[1:6], filePath)
             else:
                 attacks[attackTOanalyse[2]](filePath)
         elif(attackTOanalyse[1] == 3): # Vlan
             if(attackTOanalyse[2] == 1):
                 attacks[-1](filePath)
         elif(attackTOanalyse[1] == 4): # All attacks
-            allAttacks(attacks, filePath, stats)
+            allAttacks(attacks, filePath)
     elif(attackTOanalyse[0] == 2):
         if(attackTOanalyse[1] == 1):
             if attackTOanalyse[2] !=  7:
@@ -65,16 +66,16 @@ def callAttacks(filePath, stats, args, attackTOAnalyse):
         print("Some error has accurred, quitting...")
         sys.exit(-1)
         
-
-def allAttacks(attacks, filePath, stats):
+# Scans the pcap on all network attacks
+def allAttacks(attacks, filePath):
     for a in attacks:
-            if a == packet_loss:
-                a(filePath, stats['tcp_packets'])
-            elif a == dns_req_flood:
-                a(filePath, stats['total_packets'])
-            else:
-                a(filePath)
+        a(filePath)
+            #if a == na.packet_loss:
+            #    a(filePath, stats['tcp_packets'])
+            #else:
+            #    a(filePath)
 
+# Scans the pcap on all host discovery attacks
 def allScans(scans, filePath):
      for s in scans:
             s(filePath)
@@ -105,12 +106,14 @@ if __name__ == "__main__":
     if args.all == 0 and args.offensive == "none":
         attackTOanalyse = utils.menu.menu()
 
+    # Printing CLI 
     if args.offensive == "none":
         print(Fore.BLUE + Style.BRIGHT + "\nANALYSING the pcap...\n")
-        stats = basicStat(cap)
-        print("Done. Starting scanning for attacks...\n")
         print(Style.RESET_ALL)
-        callAttacks(filePath, stats, args, attackTOanalyse)
+        if args.verbose > 0:
+            callAttacks(filePath, args, attackTOanalyse)
+        else:
+            callAttacks(filePath, args, attackTOanalyse)
     else:
         print(Fore.RED + Style.BRIGHT + "OFFENSIVE MODE ENGAGED")
         print(Style.BRIGHT + f"\t(trying to find {args.offensive.upper()} credentials in the pcap...)\n")
@@ -119,12 +122,14 @@ if __name__ == "__main__":
 
     #STATS
     if(args.verbose > 0 and args.offensive == "none"):
+        stats = basicStat(cap)
         print("\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
         print("\nGeneral stats:")
         for key, value in stats.items():
             if(key == 'total_packets'):
                 print(f"\t{key} : {value}")
             elif(value != 0):
-                print(f"\t{key} : {value}\t({value*100/stats['total_packets']}%)")
+                round_value = round(value*100/stats['total_packets'],2)
+                print(f"\t{key} : {value}\t{round_value} %")
     print()
 
