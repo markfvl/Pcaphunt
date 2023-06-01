@@ -1,8 +1,11 @@
 import pyshark
-import hyperloglog # import HyperLogLog
+import hyperloglog
 import sys
 import time
 import collections 
+import nest_asyncio
+nest_asyncio.apply()
+
 
 def printer(arg):
     if arg != "erase_line":
@@ -48,30 +51,33 @@ def ddos_dectection(cap, max_time):
 
     pkts_read = 0
     eqs_print = 0
-    ddos_info = {} # start_time, end_time, hll(), victim_ip, pkt_count
+    ddos_info = {} 
     ddos_attacks = []
     start = False
     prev = None
     cache = collections.deque() # capacity = 5
     not_found_in_cache = False
 
-    for pkt in cap:  
+    for pkt in cap:
+
         # if not first packet and time difference between two 
         # consecutive packets is still in the threshold.
         if (pkts_read != 0 and pkt.ip.dst == prev.ip.dst and
             ((float(pkt.frame_info.time_epoch) - float(prev.frame_info.time_epoch)) < max_time)):
             if not start:
                 ddos_info = dict_info(pkt, prev)
-                cache.append(ddos_info.copy())
+                cache.appendleft(ddos_info.copy())
                 start = True
             ddos_info["hll"].add(pkt.ip.src)
             ddos_info['pkt_count'] += 1
         elif pkts_read != 0 and (float(pkt.frame_info.time_epoch) - float(prev.frame_info.time_epoch)) < max_time:
             if not start:
                 ddos_info = dict_info(prev)
+                ddos_info['pkt_count'] = 1
+                cache.appendleft(ddos_info)
                 start = True
             ddos_info["end_time"] = prev.frame_info.time_epoch
-            cache[1] = ddos_info.copy()
+
             for entry in cache:
                 # travel the dictionary, and update the parameters or add entry accordingly
                 if (pkt.ip.dst == entry.get('victim_ip') and 
@@ -83,6 +89,8 @@ def ddos_dectection(cap, max_time):
                     ddos_info = entry.copy() 
                     cache.appendleft(entry.copy()) 
                     cache.remove(entry)
+                    break
+                    
                 # same ip.dst but time is greater than threshold
                 # two possible attacks, the first one is finished
                 # the second one has started
@@ -93,13 +101,18 @@ def ddos_dectection(cap, max_time):
                     cache.remove(entry)
                     ddos_info = dict_info(pkt)
                     cache.appendleft(ddos_info.copy())
+                    not_found_in_cache = False
+                    break
+
             if not_found_in_cache:
                 # new dictionary
                 ddos_info = dict_info(pkt)
-                if len(cache) == 5:
+                ddos_info['pkt_count'] = 1
+                if len(cache) >= 5:
                     # pop last entry in the cache
                     cache.pop()
                 cache.appendleft(ddos_info.copy())
+                
         # if the time is too big between one packet and another the attack 
         # can be considered as finished
         elif pkts_read != 0:
@@ -120,6 +133,7 @@ def ddos_dectection(cap, max_time):
             eqs_print += 1
         
         prev = pkt
+        not_found_in_cache = True
 
     # if the last packed in the for loop is part of the attack 
     # append the information retrived inside of the list
@@ -162,7 +176,7 @@ def print_attacks(attackName, attack_list):
 # IPv4 header
 def pingOfDeathIPv4(filePath):
 
-    pingOfDeathIPv4Filter = 'icmp and not icmp.type == 3 and ip.len > 84'
+    pingOfDeathIPv4Filter = "icmp and not icmp.type == 3 and ip.len > 84"
     ping_of_death_IPv4_cap = pyshark.FileCapture(filePath, display_filter = pingOfDeathIPv4Filter)
 
     ping_of_death_attacks = ddos_dectection(ping_of_death_IPv4_cap, 1)
@@ -195,7 +209,7 @@ def tcp_syn_flood(filePath):
         filter = tcp_ack_filter + time_filter + victim_filter
         attack_cap = pyshark.FileCapture(filePath, display_filter=filter)
         for pkt in attack_cap:
-            ack_hll(pkt.ip.src)
+            ack_hll.add(pkt.ip.src)
         ack_cardinality = len(ack_hll)
         syn_cardinality = int(attack.get('botnet'))
         if ack_cardinality / syn_cardinality > 1/3:

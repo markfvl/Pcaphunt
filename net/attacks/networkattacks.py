@@ -1,5 +1,4 @@
 import pyshark
-import time
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -65,7 +64,7 @@ def packet_loss(filePath):
     
 ##################### VLAN/CISCO ##########################
 
-'''Check if there are any DTP (dynamic Trunking Protocol) or packets tagged with 
+'''Check if there are any DTP (Dsynamic Trunking Protocol) or packets tagged with 
    multiple Vlan tags'''
 def vlan_hopping(filePath):
 

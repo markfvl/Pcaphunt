@@ -1,4 +1,5 @@
-colorama==0.4.3
-nest_asyncio==1.5.5
+colorama==0.4.4
+hyperloglog==0.0.14
+nest_asyncio==1.5.4
 pyshark==0.4.5
-scapy==2.4.5
+scapy==2.4.4
