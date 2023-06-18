@@ -14,6 +14,14 @@ def printer(arg):
         sys.stdout.write("\x1b[2K") # erase line
         #sys.stdout.write("\x1b[1A") # cursor up one
 
+def port_add(dict, pkt):
+    if hasattr(pkt, 'tcp'): 
+        dict['hll'].add(pkt.tcp.dstport)
+    elif hasattr(pkt, 'udp'): 
+        dict['hll'].add(pkt.udp.dstport)
+    return dict
+
+
 def dict_info(pkt, prev=None):
 
     info = {}
@@ -23,6 +31,9 @@ def dict_info(pkt, prev=None):
         info["victim_ip"] = pkt.ip.dst
         info["hll"] = hyperloglog.HyperLogLog(0.01)
         info["hll"].add(pkt.ip.src)
+        info["dst_port"] = hyperloglog.HyperLogLog(0.01)
+        info = port_add(info, prev)
+        info = port_add(info, pkt)
         info['end_time'] = pkt.frame_info.time_epoch
     else:
         info["start_time"] = prev.frame_info.time_epoch
@@ -31,6 +42,8 @@ def dict_info(pkt, prev=None):
         info["pkt_count"] = 1
         info["hll"] = hyperloglog.HyperLogLog(0.01)
         info["hll"].add(prev.ip.src)
+        info["dst_port"] = hyperloglog.HyperLogLog(0.01)
+        info = port_add(info, pkt)
     
     return info
 
@@ -42,7 +55,7 @@ def is_traffic_burst(dict, threshold):
         return False
     
 def add_to_attackList(dict, attack_list, threshold):
-    if is_traffic_burst(dict, threshold):
+    if is_traffic_burst(dict, threshold) and len(dict['dst_port']) <= 1:
         dict["botnet"] = len(dict.get('hll'))
         attack_list.append(dict)
     return attack_list
@@ -70,6 +83,7 @@ def ddos_dectection(cap, max_time):
                 start = True
             ddos_info["hll"].add(pkt.ip.src)
             ddos_info['pkt_count'] += 1
+            ddos_info = port_add(ddos_info, pkt)
         elif pkts_read != 0 and (float(pkt.frame_info.time_epoch) - float(prev.frame_info.time_epoch)) < max_time:
             if not start:
                 ddos_info = dict_info(prev)
@@ -84,6 +98,7 @@ def ddos_dectection(cap, max_time):
                     (float(pkt.frame_info.time_epoch) - float(entry.get("end_time")) < max_time) ):
                     not_found_in_cache = False
                     entry["hll"].add(pkt.ip.src)
+                    entry = port_add(entry, pkt)
                     entry['pkt_count'] += 1
                     entry['end_time'] = pkt.frame_info.time_epoch
                     ddos_info = entry.copy() 
@@ -100,6 +115,8 @@ def ddos_dectection(cap, max_time):
                     add_to_attackList(entry, ddos_attacks, max_time)
                     cache.remove(entry)
                     ddos_info = dict_info(pkt)
+                    ddos_info['pkt_count'] = 1
+                    ddos_info['end_time'] = pkt.frame_info.time_epoch
                     cache.appendleft(ddos_info.copy())
                     not_found_in_cache = False
                     break
@@ -108,7 +125,9 @@ def ddos_dectection(cap, max_time):
                 # new dictionary
                 ddos_info = dict_info(pkt)
                 ddos_info['pkt_count'] = 1
-                if len(cache) >= 5:
+                # check if last entry in cache is a traffic burst
+                if len(cache) >= 5: 
+                    add_to_attackList(cache[4], ddos_attacks, max_time)
                     # pop last entry in the cache
                     cache.pop()
                 cache.appendleft(ddos_info.copy())
@@ -121,6 +140,7 @@ def ddos_dectection(cap, max_time):
             for entry in cache: 
                 if entry == ddos_info:
                     cache.remove(entry)
+                    break
             # re-write dict with new packet info
             ddos_info = dict_info(pkt)
             ddos_info["pkt_count"] = 1
