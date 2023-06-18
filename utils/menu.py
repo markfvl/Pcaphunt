@@ -137,10 +137,11 @@ def switchNetworkAttack(case, choice):
 ############# RECON ##################
 
 def reconMenu(choice):
-    print("Select the typology of attack you want to analyze")
-    print("\n\t1) Host Discovery\n")
+    print("Select the typology of recon tactic you want to analyze")
+    print("\n\t1) Host Discovery")
+    print("\t2) Port Scan\n")
 
-    upperbound = 1
+    upperbound = 2
     lowerbound = 1
     
     user_input = checkInput(input(""), upperbound, lowerbound)
@@ -150,7 +151,14 @@ def reconMenu(choice):
     if(user_input == 1):
         choice.append(1)
         return hostDiscoveryMenu(choice)
-    
+    elif(user_input == 2):
+        choice.append(2)
+        return choice
+    else:
+        print("unexpected error happened\n")
+        sys.exit(-3)
+
+
 
 def hostDiscoveryMenu(choice):
     print("Enter the host discovery scan you want to analyze")

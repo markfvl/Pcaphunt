@@ -10,9 +10,11 @@ init()
 from colorama import Fore, Back, Style
 
 import net.attacks.networkattacks as na
-import net.recon.hostdiscovery as hd
 import net.attacks.ddosdetection as dd
+import net.recon.hostdiscovery as hd
+import net.recon.portscan as ps
 from net.offense import credentialSniff
+
 
 from utils.parser import *
 from utils.pcapStat import *
@@ -32,12 +34,14 @@ def callAttacks(filePath, args, attackTOAnalyse):
     else:
         scans = [hd.arp_scanning, hd.IP_protocol_scan, hd.icmp_ping_sweeps_scan, 
                 hd.tcp_syn_ping_sweep, hd.tcp_ack_ping_sweep, hd.udp_ping_scan]
+    if args.portscan > 0:
+        scans.append(ps.port_scan)
 
     if(args.all > 0 or attackTOanalyse[0] == 3):
-        print("RECON: \n")
-        allScans(scans, filePath)
         print("\nNETWORK ATTACKS: \n")
         allAttacks(attacks, filePath)
+        print("RECON: \n")
+        allScans(scans, filePath)
     elif(attackTOanalyse[0] == 1):
         if(attackTOanalyse[1] == 1): #Spoof
             if(attackTOanalyse[2] == 1):
@@ -56,12 +60,18 @@ def callAttacks(filePath, args, attackTOAnalyse):
                 attacks[-1](filePath)
         elif(attackTOanalyse[1] == 4): # All attacks
             allAttacks(attacks, filePath)
-    elif(attackTOanalyse[0] == 2):
+    elif(attackTOanalyse[0] == 2): # Recon
         if(attackTOanalyse[1] == 1):
             if attackTOanalyse[2] !=  7:
                 scans[attackTOanalyse[2]](filePath)
             else:
                 allScans(scans, filePath)
+        if(attackTOanalyse[1] == 2):
+            if args.portscan > 0:
+                scans[-1](filePath)
+            else:
+                print("Error! Port Scan flag is disabled.\nTry re-run the program with -ps (-h for more info)\n")
+                sys.exit(-2)
     else:
         print("Some error has accurred, quitting...")
         sys.exit(-1)
@@ -70,10 +80,6 @@ def callAttacks(filePath, args, attackTOAnalyse):
 def allAttacks(attacks, filePath):
     for a in attacks:
         a(filePath)
-            #if a == na.packet_loss:
-            #    a(filePath, stats['tcp_packets'])
-            #else:
-            #    a(filePath)
 
 # Scans the pcap on all host discovery attacks
 def allScans(scans, filePath):
@@ -91,7 +97,8 @@ if __name__ == "__main__":
     group.add_argument("-O", "--offensive", help="Starts offensive mode (default starts all attacks)", choices=["ftp", "http", "all"], default="none")
     parser.add_argument("filePath", metavar="pcapFile", type=pathlib.Path, help="Path to pcap file to analyze")
     parser.add_argument("-s", "--scapy", help="Use scapy functions", action="count", default=0)
-    parser.add_argument("-v", "--verbose", help="Verbose mode (-vv for double verbose)", action="count", default=0)
+    parser.add_argument("-ps", "--portscan", help="Activate detection of port scans (requires py-radix to be installed)", action="count", default=0)
+    parser.add_argument("-v", "--verbose", help="Verbose mode", action="count", default=0)
     args = parser.parse_args()
 
     #PCAP PATH
