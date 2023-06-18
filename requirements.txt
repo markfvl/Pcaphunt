@@ -3,3 +3,4 @@ hyperloglog==0.0.14
 nest_asyncio==1.5.4
 pyshark==0.4.5
 scapy==2.4.4
+py_radix==0.10.0
