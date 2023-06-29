@@ -10,6 +10,7 @@ init()
 from colorama import Fore, Back, Style
 
 import net.attacks.networkattacks as na
+#from net.attacks.networkattacks import url_redirection
 import net.attacks.ddosdetection as dd
 import net.recon.hostdiscovery as hd
 import net.recon.portscan as ps
@@ -26,7 +27,7 @@ import utils.menu
 def callAttacks(filePath, args, attackTOAnalyse):
 
     attacks = [na.arpSpoofing, na.packet_loss, dd.pingOfDeathIPv4, dd.icmp_flood, 
-                dd.tcp_syn_flood, dd.dns_request_flood, na.vlan_hopping]
+                dd.tcp_syn_flood, dd.dns_request_flood, na.vlan_hopping, na.url_redirection]
     if args.scapy > 0:
         from net.recon.hostdiscoveryScapy import arp_scanningScapy
         scans = [arp_scanningScapy, hd.IP_protocol_scan, hd.icmp_ping_sweeps_scan, 
@@ -35,11 +36,16 @@ def callAttacks(filePath, args, attackTOAnalyse):
         scans = [hd.arp_scanning, hd.IP_protocol_scan, hd.icmp_ping_sweeps_scan, 
                 hd.tcp_syn_ping_sweep, hd.tcp_ack_ping_sweep, hd.udp_ping_scan]
     if args.portscan > 0:
+        try:
+            import radix
+        except ImportError:
+            print("Py-Radix is not installed on the system, therefore port scan detection is not usable.\n")
+            sys.exit(-1)
         scans.append(ps.port_scan)
 
     if(args.all > 0 or attackTOanalyse[0] == 3):
         print("\nNETWORK ATTACKS: \n")
-        allAttacks(attacks, filePath)
+        allAttacks(attacks, filePath, args.verbose)
         print("RECON: \n")
         allScans(scans, filePath)
     elif(attackTOanalyse[0] == 1):
@@ -57,9 +63,12 @@ def callAttacks(filePath, args, attackTOAnalyse):
                 attacks[attackTOanalyse[2]](filePath)
         elif(attackTOanalyse[1] == 3): # Vlan
             if(attackTOanalyse[2] == 1):
-                attacks[-1](filePath)
-        elif(attackTOanalyse[1] == 4): # All attacks
-            allAttacks(attacks, filePath)
+                attacks[6](filePath)
+        elif(attackTOanalyse[1] == 4): # Url redirection
+            if(attackTOanalyse[2] == 1):
+                attacks[7](filePath, args.verbose)
+        elif(attackTOanalyse[1] == 5): # All attacks
+            allAttacks(attacks, filePath, args.verbose)
     elif(attackTOanalyse[0] == 2): # Recon
         if(attackTOanalyse[1] == 1):
             if attackTOanalyse[2] !=  7:
@@ -77,9 +86,13 @@ def callAttacks(filePath, args, attackTOAnalyse):
         sys.exit(-1)
         
 # Scans the pcap on all network attacks
-def allAttacks(attacks, filePath):
+def allAttacks(attacks, filePath, verbose=0):
     for a in attacks:
-        a(filePath)
+        if a == na.url_redirection:
+            a(filePath, verbose)
+        else:
+            a(filePath)
+        
 
 # Scans the pcap on all host discovery attacks
 def allScans(scans, filePath):

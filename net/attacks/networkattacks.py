@@ -1,4 +1,6 @@
 import pyshark
+import re
+import time
 import nest_asyncio
 nest_asyncio.apply()
 
@@ -78,4 +80,58 @@ def vlan_hopping(filePath):
         print("Traces of a possible 'Vlan Hopping' attack have been found:\n\tPoisonus packets = {}".format(pktHopCount))
     else:
         print("No traces of 'Vlan Hopping' exploitation have been found.")
+    print()
+
+
+################# OTHERS ##################
+
+def url_redirection(filePath, verbose):
+    redirection_filter = "http.response.code > 299 and http.response.code < 400"
+    redirection_cap = pyshark.FileCapture(filePath, display_filter= redirection_filter)
+
+    parameter_redirection_list = []
+    other_redirection_list = []
+    url_dict = {}
+    start_time = None
+    end_time = None
+
+    for pkt in redirection_cap:
+        if start_time == None:
+            start_time = pkt.frame_info.time_epoch
+        end_time = pkt.frame_info.time_epoch
+        
+        url_dict['uri'] = pkt.http.response_for_uri
+        url_dict['ip'] = pkt.ip.src
+        url = re.search('http://(.+?)/', url_dict['uri'])
+        url_dict['url'] = url.group(1)
+
+        if url_dict['url'].startswith("www."):
+            url_dict['url'] = url_dict['url'][4:]
+
+        if pkt.http.response_code == "301" or pkt.http.response_code == "302":
+            parameter_redirection_list.append(url_dict.copy())
+        else:
+            other_redirection_list.append(url_dict.copy())
+    
+    if (len(parameter_redirection_list) + len(other_redirection_list)) == 0:
+        print("No traces of 'URL redirection' have been found.\n")
+        
+    elif len(parameter_redirection_list) > 0:
+        start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(start_time)))
+        end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(end_time)))
+        
+        print(f"Found traces of 'Parameter Based URL Redirection': START = {start_time}\tEND = {end_time}")
+        for url in parameter_redirection_list:
+            print(f"\tRedirected URL: {url['url']}, IP: {url['ip']}")
+            if verbose > 0:
+                print(f"\tFull URI requested: {url['uri']}\n")
+    elif len(other_redirection_list) > 0:
+        start_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(start_time)))
+        end_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(end_time)))
+        
+        print(f"Found traces of 'URL Redirection': START = {start_time}\tEND = {end_time}")
+        for url in parameter_redirection_list:
+            print(f"\tRedirected URL: {url['url']}, IP: {url['ip']}")
+            if verbose > 0:
+                print(f"\tFull URI requested: {url['uri']}\n")
     print()

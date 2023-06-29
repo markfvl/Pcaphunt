@@ -43,9 +43,9 @@ def checkInput(input, upperBound, lowerBound):
         
 def networkAttacksMenu(choice):
     print("Select the typology of attack you want to analyze")
-    print("\n\t1) Spoofing\n\t2) DoS/DDoS\n\t3) Vlan\n\t4) All network attacks\n")
+    print("\n\t1) Spoofing\n\t2) DoS/DDoS\n\t3) Vlan\n\t4) Others\n\t5) All network attacks\n")
 
-    upperbound = 4
+    upperbound = 5
     lowerbound = 1
 
     user_input = checkInput(input(""), upperbound, lowerbound)
@@ -115,6 +115,21 @@ def vlanMenu(choice):
         choice.append(1)
         return choice
 
+def otherMenu(choice):
+    print("Enter the attack you want to analyze")
+    print("\n\t1) url redirection\n")
+    
+    upperbound = 1
+    lowerbound = 1
+    
+    user_input = checkInput(input(""), upperbound, lowerbound)
+    while(user_input < lowerbound or user_input > upperbound):
+        user_input = checkInput(input(""), upperbound, lowerbound)
+    if(user_input == 1):
+        choice.append(1)
+        return choice
+    
+
 def switchNetworkAttack(case, choice):
     if(case == 1):
         choice.append(1)
@@ -125,9 +140,13 @@ def switchNetworkAttack(case, choice):
     elif(case == 3):
         choice.append(3)
         return vlanMenu(choice)
-    elif(case == 4):
-        #all networkAttacks
+    elif(case == 4): 
+        # other
         choice.append(4)
+        return otherMenu(choice)
+    elif(case == 5):
+        #all networkAttacks
+        choice.append(5)
         return choice
     else:
         print("An unkown error has occurred")
