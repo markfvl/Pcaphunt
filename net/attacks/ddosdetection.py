@@ -84,7 +84,7 @@ def ddos_dectection(cap, max_time):
             ddos_info["hll"].add(pkt.ip.src)
             ddos_info['pkt_count'] += 1
             ddos_info = port_add(ddos_info, pkt)
-        elif pkts_read != 0 and (float(pkt.frame_info.time_epoch) - float(prev.frame_info.time_epoch)) < max_time:
+        elif pkts_read != 0 and ((float(pkt.frame_info.time_epoch) - float(prev.frame_info.time_epoch)) < max_time):
             if not start:
                 ddos_info = dict_info(prev)
                 ddos_info['pkt_count'] = 1
@@ -126,7 +126,7 @@ def ddos_dectection(cap, max_time):
                 ddos_info = dict_info(pkt)
                 ddos_info['pkt_count'] = 1
                 # check if last entry in cache is a traffic burst
-                if len(cache) >= 5: 
+                if len(cache) >= 5:
                     add_to_attackList(cache[4], ddos_attacks, max_time)
                     # pop last entry in the cache
                     cache.pop()
@@ -135,6 +135,12 @@ def ddos_dectection(cap, max_time):
         # if the time is too big between one packet and another the attack 
         # can be considered as finished
         elif pkts_read != 0:
+            if not start:
+                ddos_info = dict_info(prev)
+                ddos_info['pkt_count'] = 1
+                cache.appendleft(ddos_info)
+                start = True
+                
             ddos_info["end_time"] = prev.frame_info.time_epoch
             add_to_attackList(ddos_info, ddos_attacks, max_time)
             for entry in cache: 

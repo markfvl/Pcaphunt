@@ -2,8 +2,7 @@ import sys
 try:
     import radix
 except ImportError:
-    print("Py-Radix is not installed on the system, therefore port scan detection is not usable.\n")
-    sys.exit(-1)
+    pass
 import time
 import pyshark
 import hyperloglog
