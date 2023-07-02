@@ -6,7 +6,6 @@ from collections import Counter
 import dns.resolver
 import whois
 import tldextract
-import pandas as pd
 
 
 def domains_filter(domains):
@@ -24,8 +23,10 @@ def search_models(model_dir, model_path):
     if not os.path.isdir(model_dir):
         os.mkdir(model_dir)
     else:
-        models = glob.glob(model_path)
-    return models
+        models = list(filter(os.path.isfile, glob.glob(model_path)))
+        models.sort(key=lambda x:os.path.getmtime(x))
+        return models
+
 
 def check_user_input():
     user_answer = input("Do you want to train the model now? (y/n): ")
@@ -65,7 +66,7 @@ def calculate_char_distribution(text):
     char_counts = Counter(text)
     total_chars = len(text)
     char_dist = {char: char_counts[char] / total_chars for char in char_counts}
-    return pd.DataFrame([char_dist])
+    return char_dist
 
 
 def get_domain_ttl(domain):

@@ -10,11 +10,12 @@ from sklearn.metrics import accuracy_score, recall_score, f1_score, roc_auc_scor
 from . import dgautil as util
 
 
-def train(dataset, save_path, estimators = 20):
-    print("Preparing the model")
+def train(dataset, save_path, model_name, estimators = 20):
+
+    print(f"Preparing the model: {model_name}")
     df = pd.read_csv(dataset)
 
-    #converting the 'Character Frequency' column from string to dictionary
+    #converting the 'Character Distribution' column from string to dictionary
     df['Character Distribution'] = df['Character Distribution'].apply(ast.literal_eval)
 
     X = df[['SLD', 'Entropy', 'Character Distribution', 'SLD length', 'Domain length', 'TTL', 'Age']]
@@ -33,17 +34,17 @@ def train(dataset, save_path, estimators = 20):
     X_train, X_test, y_train, y_test = train_test_split(X_encoded, y, test_size=0.2, random_state=42)
 
     # Create and train the Random Forest classifier
-    print("Training the model")
+    print(f"Training {model_name}:")
     classifier = RandomForestClassifier(n_estimators=estimators, random_state=42, n_jobs=-1)
     for i in tqdm(range(estimators)):
         classifier.set_params(n_estimators=i + 1)
         classifier.fit(X_train, y_train)
 
     print(f"Saving the model in {save_path}")
-    model_path = save_path + "/random_forest.joblib"
+    model_path = save_path + "/" + model_name + ".joblib"
     joblib.dump(classifier, model_path)
 
-    # predictions on the test set and model evaluation metrics
+    # Predictions on the test set and model evaluation metrics
     print("\nModel statistics:")
     predictions = classifier.predict(X_test)
 
@@ -72,6 +73,7 @@ def predict_domain(domain, classifier):
     sld = util.extract_sld(domain)
     entropy = util.calculate_entropy(sld)
     char_dist = util.calculate_char_distribution(sld)
+    char_dist = pd.DataFrame([char_dist])
     ttl = util.get_domain_ttl(domain)
     age = util.get_domain_age(domain)
     

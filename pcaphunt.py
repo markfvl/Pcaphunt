@@ -10,9 +10,9 @@ init()
 from colorama import Fore, Back, Style
 
 import net.attacks.networkattacks as na
-#from net.attacks.networkattacks import url_redirection
 import net.attacks.ddosdetection as dd
 import net.recon.hostdiscovery as hd
+import net.dga.dgadetection as dga 
 import net.recon.portscan as ps
 from net.offense import credentialSniff
 
@@ -25,8 +25,11 @@ import utils.menu
 
 
 def callAttacks(filePath, args, attackTOAnalyse):
-
-    attacks = [na.arpSpoofing, na.packet_loss, dd.pingOfDeathIPv4, dd.icmp_flood, 
+    if args.dga:
+        attacks = [na.arpSpoofing, na.packet_loss, dd.pingOfDeathIPv4, dd.icmp_flood, 
+                dd.tcp_syn_flood, dd.dns_request_flood, na.vlan_hopping, na.url_redirection, dga.detection_pcap]
+    else:
+        attacks = [na.arpSpoofing, na.packet_loss, dd.pingOfDeathIPv4, dd.icmp_flood, 
                 dd.tcp_syn_flood, dd.dns_request_flood, na.vlan_hopping, na.url_redirection]
     if args.scapy > 0:
         from net.recon.hostdiscoveryScapy import arp_scanningScapy
@@ -45,7 +48,7 @@ def callAttacks(filePath, args, attackTOAnalyse):
 
     if(args.all > 0 or attackTOanalyse[0] == 3):
         print("\nNETWORK ATTACKS: \n")
-        allAttacks(attacks, filePath, args.verbose)
+        allAttacks(attacks, filePath, args, args.verbose)
         print("RECON: \n")
         allScans(scans, filePath)
     elif(attackTOanalyse[0] == 1):
@@ -86,10 +89,12 @@ def callAttacks(filePath, args, attackTOAnalyse):
         sys.exit(-1)
         
 # Scans the pcap on all network attacks
-def allAttacks(attacks, filePath, verbose=0):
+def allAttacks(attacks, filePath, args = None, verbose=0):
     for a in attacks:
         if a == na.url_redirection:
             a(filePath, verbose)
+        elif a == dga.detection_pcap:
+            a(filePath, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
         else:
             a(filePath)
         
@@ -112,36 +117,58 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--scapy", help="Use scapy functions", action="count", default=0)
     parser.add_argument("-ps", "--portscan", help="Activate detection of port scans (requires py-radix to be installed)", action="count", default=0)
     parser.add_argument("-v", "--verbose", help="Verbose mode", action="count", default=0)
+    parser.add_argument("-dga", action="store_true", help ="Activate DGA detection on pcap-file or single domain", default=False)
+    parser.add_argument("--epoches", type = int, help="Set the number of epoches (default = 20, only works if -dga option is enabled)", default=20)
+    parser.add_argument("--savepath", type=str, help="Customize the path to directiory where to save the model (only works if -dga option is enabled)", default="./net/dga/models")
+    parser.add_argument("--modelname", type=str, help="Customize the name of the model to save or load (defualt = random_forest, only works if -dga option is enabled)", default="random_forest")
+    parser.add_argument("--loadpath", type=str, help="Name of the path from where to load the model (only works if -dga option is enabled)", default="./net/dga/models")
+    parser.add_argument("--dataset", type = str, help="Path of the custom dataset that will be used to train the model (only works if -dga option is enabled)", default="./net/dga/dataset_sample.csv")
     args = parser.parse_args()
 
     #PCAP PATH
     if os.path.isfile(args.filePath):
         filePath = str(args.filePath)
-    else:
+    elif args.dga == False:
         filePath = inputFilePath()
 
-    cap = pyshark.FileCapture(filePath)
     attackTOanalyse = None
 
-    if args.all == 0 and args.offensive == "none":
-        attackTOanalyse = utils.menu.menu()
+    if args.all == 0 and args.offensive == "none" and args.dga == False:
+        attackTOanalyse = utils.menu.menu() 
 
     # Printing CLI 
-    if args.offensive == "none":
+    if args.offensive == "none" and args.all > 0:
         print(Fore.BLUE + Style.BRIGHT + "\nANALYSING the pcap...\n")
         print(Style.RESET_ALL)
         if args.verbose > 0:
             callAttacks(filePath, args, attackTOanalyse)
         else:
             callAttacks(filePath, args, attackTOanalyse)
-    else:
+    elif args.offensive != "none":
         print(Fore.RED + Style.BRIGHT + "OFFENSIVE MODE ENGAGED")
         print(Style.BRIGHT + f"\t(trying to find {args.offensive.upper()} credentials in the pcap...)\n")
         print(Style.RESET_ALL)
         credentialSniff.credentialSniff(args.offensive, filePath)
+    elif args.dga:
+        defaultPath = "./net/dga/models"
+        if args.loadpath != defaultPath:
+            if not os.path.isdir(args.loadpath):
+                print("--loadpath entered does not exist, switching to default one...")
+                args.loadpath == defaultPath
+        if os.path.isfile(args.filePath):
+            if filePath.endswith(".txt"):
+                dga.detection_txt(filePath, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+            elif filePath.endswith(".pcap") or filePath.endswith(".pcapng"):
+                dga.detection_pcap(filePath, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+            else:
+                print("The extention of the file is not supported.\n\tSupported file extentions: \n\ttxt\n\tpcap\n\tpcapng")
+        else: # single domain
+            dga.detection([str(args.filePath)], args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+
 
     #STATS
     if(args.verbose > 0 and args.offensive == "none"):
+        cap = pyshark.FileCapture(filePath)
         stats = basicStat(cap)
         print("\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -")
         print("\nGeneral stats:")
@@ -151,5 +178,4 @@ if __name__ == "__main__":
             elif(value != 0):
                 round_value = round(value*100/stats['total_packets'],2)
                 print(f"\t{key} : {value}\t{round_value} %")
-    print()
 
