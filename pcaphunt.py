@@ -69,9 +69,9 @@ def callAttacks(filePath, args, attackTOAnalyse):
                 attacks[6](filePath)
         elif(attackTOanalyse[1] == 4): # Url redirection
             if(attackTOanalyse[2] == 1):
-                attacks[7](filePath, args.verbose)
+                attacks[7](filePath, args.verbose, args)
         elif(attackTOanalyse[1] == 5): # All attacks
-            allAttacks(attacks, filePath, args.verbose)
+            allAttacks(attacks, filePath, args, args.verbose)
     elif(attackTOanalyse[0] == 2): # Recon
         if(attackTOanalyse[1] == 1):
             if attackTOanalyse[2] !=  7:
@@ -92,7 +92,7 @@ def callAttacks(filePath, args, attackTOAnalyse):
 def allAttacks(attacks, filePath, args = None, verbose=0):
     for a in attacks:
         if a == na.url_redirection:
-            a(filePath, verbose)
+            a(filePath, verbose, args)
         elif a == dga.detection_pcap:
             a(filePath, args.model_type, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
         else:

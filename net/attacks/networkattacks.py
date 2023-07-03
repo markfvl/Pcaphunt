@@ -4,6 +4,8 @@ import time
 import nest_asyncio
 nest_asyncio.apply()
 
+import net.dga.dgadetection as dga
+
 ##################### SPOOFING ##########################
 
 def arpSpoofing(filePath):
@@ -85,7 +87,7 @@ def vlan_hopping(filePath):
 
 ################# OTHERS ##################
 
-def url_redirection(filePath, verbose):
+def url_redirection(filePath, verbose, args):
     redirection_filter = "http.response.code > 299 and http.response.code < 400"
     redirection_cap = pyshark.FileCapture(filePath, display_filter= redirection_filter)
 
@@ -94,6 +96,7 @@ def url_redirection(filePath, verbose):
     url_dict = {}
     start_time = None
     end_time = None
+    domain_list = []
 
     for pkt in redirection_cap:
         if start_time == None:
@@ -123,6 +126,7 @@ def url_redirection(filePath, verbose):
         print(f"Found traces of 'Parameter Based URL Redirection': START = {start_time}\tEND = {end_time}")
         for url in parameter_redirection_list:
             print(f"\tRedirected URL: {url['url']}, IP: {url['ip']}")
+            domain_list.append(url['url'])
             if verbose > 0:
                 print(f"\tFull URI requested: {url['uri']}\n")
     elif len(other_redirection_list) > 0:
@@ -132,6 +136,12 @@ def url_redirection(filePath, verbose):
         print(f"Found traces of 'URL Redirection': START = {start_time}\tEND = {end_time}")
         for url in parameter_redirection_list:
             print(f"\tRedirected URL: {url['url']}, IP: {url['ip']}")
+            domain_list.append(url['url'])
             if verbose > 0:
                 print(f"\tFull URI requested: {url['uri']}\n")
     print()
+    
+    if args.dga:
+        dga.detection(domain_list, args.model_type, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+    else:
+        dga.detection(domain_list)

@@ -7,9 +7,10 @@ from . import lstm
 import nest_asyncio
 nest_asyncio.apply()
 
-def detection(domains, type = "rfc", dataset = "./net/dga/dataset_sample.csv", epoch_num = 20, save_dir = "./net/dga/models", load_dir = ".net/dga/models", model_name = None):
+def detection(domains, type = "rfc", dataset = "./net/dga/dataset_sample.csv", epoch_num = 20, save_dir = "./net/dga/models", load_dir = "./net/dga/models", model_name = None):
     
     default_name = "random_forest" if type == "rfc" else "lstm"
+    model_name = default_name if model_name == None else model_name
     default_dir = "./net/dga/models"
     models = []
 
