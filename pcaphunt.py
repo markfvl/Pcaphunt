@@ -94,7 +94,7 @@ def allAttacks(attacks, filePath, args = None, verbose=0):
         if a == na.url_redirection:
             a(filePath, verbose)
         elif a == dga.detection_pcap:
-            a(filePath, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+            a(filePath, args.model_type, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
         else:
             a(filePath)
         
@@ -120,10 +120,14 @@ if __name__ == "__main__":
     parser.add_argument("-dga", action="store_true", help ="Activate DGA detection on pcap-file or single domain", default=False)
     parser.add_argument("--epoches", type = int, help="Set the number of epoches (default = 20, only works if -dga option is enabled)", default=20)
     parser.add_argument("--savepath", type=str, help="Customize the path to directiory where to save the model (only works if -dga option is enabled)", default="./net/dga/models")
-    parser.add_argument("--modelname", type=str, help="Customize the name of the model to save or load (defualt = random_forest, only works if -dga option is enabled)", default="random_forest")
+    parser.add_argument("--modelname", type=str, help="Customize the name of the model to save or load (defualt = random_forest, only works if -dga option is enabled)", default=None)
     parser.add_argument("--loadpath", type=str, help="Name of the path from where to load the model (only works if -dga option is enabled)", default="./net/dga/models")
     parser.add_argument("--dataset", type = str, help="Path of the custom dataset that will be used to train the model (only works if -dga option is enabled)", default="./net/dga/dataset_sample.csv")
+    parser.add_argument("--model_type", type = str, help = "Specify the type of model to be trained (default = rfc)", choices=["rfc", "lstm"], default="rfc")
     args = parser.parse_args()
+
+    if args.modelname == None:
+        args.modelname = "random_forest" if args.model_type == "rfc" else "lstm"
 
     #PCAP PATH
     if os.path.isfile(args.filePath):
@@ -140,10 +144,11 @@ if __name__ == "__main__":
     if args.offensive == "none" and args.all > 0:
         print(Fore.BLUE + Style.BRIGHT + "\nANALYSING the pcap...\n")
         print(Style.RESET_ALL)
-        if args.verbose > 0:
+        callAttacks(filePath, args, attackTOanalyse)
+        '''if args.verbose > 0:
             callAttacks(filePath, args, attackTOanalyse)
         else:
-            callAttacks(filePath, args, attackTOanalyse)
+            callAttacks(filePath, args, attackTOanalyse)'''
     elif args.offensive != "none":
         print(Fore.RED + Style.BRIGHT + "OFFENSIVE MODE ENGAGED")
         print(Style.BRIGHT + f"\t(trying to find {args.offensive.upper()} credentials in the pcap...)\n")
@@ -153,17 +158,15 @@ if __name__ == "__main__":
         defaultPath = "./net/dga/models"
         if args.loadpath != defaultPath:
             if not os.path.isdir(args.loadpath):
-                print("--loadpath entered does not exist, switching to default one...")
+                print("--loadpath entered is not valid, switching to default one...")
                 args.loadpath == defaultPath
         if os.path.isfile(args.filePath):
             if filePath.endswith(".txt"):
-                dga.detection_txt(filePath, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
-            elif filePath.endswith(".pcap") or filePath.endswith(".pcapng"):
-                dga.detection_pcap(filePath, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+                dga.detection_txt(filePath, args.model_type , args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
             else:
-                print("The extention of the file is not supported.\n\tSupported file extentions: \n\ttxt\n\tpcap\n\tpcapng")
+                dga.detection_pcap(filePath, args.model_type, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
         else: # single domain
-            dga.detection([str(args.filePath)], args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+            dga.detection([str(args.filePath)], args.model_type, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
 
 
     #STATS
@@ -178,4 +181,5 @@ if __name__ == "__main__":
             elif(value != 0):
                 round_value = round(value*100/stats['total_packets'],2)
                 print(f"\t{key} : {value}\t{round_value} %")
+    print()
 
