@@ -25,7 +25,7 @@ def search_models(model_dir, model_path):
     else:
         models = list(filter(os.path.isfile, glob.glob(model_path)))
         models.sort(key=lambda x:os.path.getmtime(x))
-        return models
+    return models
 
 
 def check_user_input():

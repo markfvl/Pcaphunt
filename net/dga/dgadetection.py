@@ -15,20 +15,12 @@ def detection(domains, type = "rfc", dataset = "./net/dga/dataset_sample.csv", e
     models = []
 
     if load_dir != default_dir:
-        '''if model_name != None:
-            model_path = load_dir + f"/{model_name}.joblib"
-        else:
-            model_path = load_dir + "/*.joblib"'''
         model_path = load_dir + "/*.joblib"
         models = util.search_models(load_dir, model_path)
     else:
-        '''if model_name != None:
-            model_path = save_dir + f"/{model_name}.joblib"
-        else:
-            model_path = save_dir + "/*.joblib"'''
         model_path = save_dir + "/*.joblib"
         models = util.search_models(save_dir, model_path)
-    
+
     if len(models) == 0:
         print("No trained models have been found.")
         user_answer = util.check_user_input()

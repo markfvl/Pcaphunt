@@ -140,8 +140,8 @@ def url_redirection(filePath, verbose, args):
             if verbose > 0:
                 print(f"\tFull URI requested: {url['uri']}\n")
     print()
-    
-    if args.dga:
-        dga.detection(domain_list, args.model_type, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
-    else:
-        dga.detection(domain_list)
+    if len(domain_list) > 0:
+        if args.dga:
+            dga.detection(domain_list, args.model_type, args.dataset, args.epoches, args.savepath, args.loadpath, args.modelname)
+        else:
+            dga.detection(domain_list)
