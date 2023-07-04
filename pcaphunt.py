@@ -8,6 +8,7 @@ nest_asyncio.apply()
 from colorama import init
 init()
 from colorama import Fore, Back, Style
+from zipfile import ZipFile
 
 import net.attacks.networkattacks as na
 import net.attacks.ddosdetection as dd
@@ -15,7 +16,6 @@ import net.recon.hostdiscovery as hd
 import net.dga.dgadetection as dga 
 import net.recon.portscan as ps
 from net.offense import credentialSniff
-
 
 from utils.parser import *
 from utils.pcapStat import *
@@ -128,7 +128,15 @@ if __name__ == "__main__":
 
     if args.modelname == None:
         args.modelname = "random_forest" if args.model_type == "rfc" else "lstm"
-
+    
+    default_dataset_path = "./net/dga/dataset_sample"
+    default_dataset = default_dataset_path + ".csv"
+    if not os.path.isfile(default_dataset):
+        with ZipFile(default_dataset_path + ".zip", 'r') as datasetZip:
+            print("Extracting dataset_sample")
+            datasetZip.extractall(path="./net/dga")
+            print("Extaction done!\n")
+        
     #PCAP PATH
     if os.path.isfile(args.filePath):
         filePath = str(args.filePath)
